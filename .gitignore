@@ -1,0 +1,54 @@
+# Binaries
+/xferd
+/xferd.exe
+/xferd-hashpw
+/xferd-hashpw.exe
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+coverage.html
+
+# Go workspace file
+go.work
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+dist/
+*.tar.gz
+*.zip
+*.deb
+*.rpm
+packaging/winsw/bin/
+
+
+# Config files with secrets
+config.yml
+*.key
+*.pem
+*.crt
+
+# Runtime directories
+/temp/
+/shadow/
+/data/
+
+# Logs
+*.log
+

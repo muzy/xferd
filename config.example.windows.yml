@@ -1,0 +1,105 @@
+# Xferd Windows Example Configuration
+# This configuration uses Windows-style paths and is optimized for Windows environments
+
+server:
+  address: "0.0.0.0"
+  port: 8080
+  temp_dir: C:/ProgramData/xferd/temp
+  tls:
+    enabled: false
+    cert_file: C:/ProgramData/xferd/cert.pem
+    key_file: C:/ProgramData/xferd/key.pem
+  # Optional basic authentication for upload endpoint
+  basic_auth:
+    enabled: false
+    username: admin
+    # Use EITHER password OR password_hash (password_hash is recommended for production)
+    password: changeme  # Plaintext password (not recommended for production)
+    # password_hash: "$2a$10$..."  # Bcrypt hash (generate with: xferd-hashpw)
+
+directories:
+  - name: invoices
+    watch_path: C:/Data/invoices
+    recursive: true
+    ignore:
+      - "*.tmp"
+      - "*.partial"
+      - ".DS_Store"
+      - "temp_*"
+    watch:
+      mode: hybrid_ultra_low_latency
+      startup_reconcile_scan: true
+      reconcile_scan:
+        enabled: true
+        interval_seconds: 30
+    stability:
+      confirmation_interval_ms: 100
+      required_stable_checks: 2
+      max_wait_ms: 1500
+    shadow:
+      enabled: true
+      path: C:/ProgramData/xferd/shadow/invoices
+      retention_hours: 48
+    outbound:
+      url: https://esb.example.com/upload
+      auth:
+        type: basic
+        username: user
+        password: secret
+
+  - name: reports
+    watch_path: C:/Data/reports
+    recursive: true
+    ignore:
+      - "*.log"
+      - "backup_*"
+      - "*/cache/*"
+    watch:
+      mode: hybrid_ultra_low_latency
+      startup_reconcile_scan: true
+      reconcile_scan:
+        enabled: true
+        interval_seconds: 60
+    stability:
+      confirmation_interval_ms: 200
+      required_stable_checks: 3
+      max_wait_ms: 3000
+    shadow:
+      enabled: true
+      path: C:/ProgramData/xferd/shadow/reports
+      retention_hours: 72
+    outbound:
+      url: https://api.example.com/reports
+      auth:
+        type: bearer
+        token: your-api-token-here
+
+  - name: integration
+    # OUT directory: watch for files to upload to external systems
+    watch_path: C:/Data/integration/out
+    # IN directory: place HTTP uploads here for 3rd party software
+    ingest_path: C:/Data/integration/in
+    recursive: true
+    ignore:
+      - "*.tmp"
+      - "*.partial"
+    watch:
+      mode: hybrid_ultra_low_latency
+      startup_reconcile_scan: true
+      reconcile_scan:
+        enabled: true
+        interval_seconds: 30
+    stability:
+      confirmation_interval_ms: 100
+      required_stable_checks: 2
+      max_wait_ms: 1500
+    shadow:
+      enabled: true
+      path: C:/ProgramData/xferd/shadow/integration
+      retention_hours: 24
+    outbound:
+      url: https://api.example.com/integration
+      auth:
+        type: basic
+        username: integrator
+        password: secret123

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Xferd Windows Service Configuration
+  
+  This file is used by WinSW (Windows Service Wrapper) to run xferd as a Windows service.
+  
+  Installation:
+    1. Download winsw.exe from https://github.com/winsw/winsw/releases
+    2. Rename winsw.exe to xferd.exe
+    3. Place xferd.exe, this XML file, and the xferd binary in the same directory
+    4. Run: xferd.exe install
+    5. Run: xferd.exe start
+  
+  Management:
+    Start:   xferd.exe start
+    Stop:    xferd.exe stop
+    Restart: xferd.exe restart
+    Status:  xferd.exe status
+-->
+<service>
+  <id>xferd</id>
+  <name>Xferd File Movement Service</name>
+  <description>Ultra-low-latency file movement service for cross-platform file transfers</description>
+  
+  <!-- Path to the xferd executable -->
+  <executable>%BASE%\xferd.exe</executable>
+  
+  <!-- Command line arguments -->
+  <arguments>-config "%BASE%\config.yml"</arguments>
+  
+  <!-- Working directory -->
+  <workingdirectory>%BASE%</workingdirectory>
+  
+  <!-- Logging -->
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>8</keepFiles>
+  </log>
+  
+  <!-- Service start mode -->
+  <startmode>Automatic</startmode>
+  
+  <!-- Restart on failure -->
+  <onfailure action="restart" delay="5 sec"/>
+  <onfailure action="restart" delay="10 sec"/>
+  <onfailure action="restart" delay="30 sec"/>
+  
+  <!-- Priority -->
+  <priority>Normal</priority>
+  
+  <!-- Security -->
+  <serviceaccount>
+    <domain></domain>
+    <user>LocalSystem</user>
+    <password></password>
+    <allowservicelogon>true</allowservicelogon>
+  </serviceaccount>
+</service>
+

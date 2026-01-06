@@ -1,0 +1,29 @@
+[Unit]
+Description=Xferd File Movement Service
+Documentation=https://github.com/muzy/xferd
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=xferd
+Group=xferd
+ExecStart=/usr/bin/xferd -config /etc/xferd/config.yml
+Restart=on-failure
+RestartSec=5s
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/xferd /data
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=xferd
+
+[Install]
+WantedBy=multi-user.target
+

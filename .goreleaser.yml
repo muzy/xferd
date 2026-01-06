@@ -1,0 +1,115 @@
+# GoReleaser configuration for Xferd
+
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - go mod verify
+    - go test -v -race ./...
+    - go test -v -tags=integration ./internal/service
+    - bash scripts/download-winsw.sh
+
+builds:
+  - id: xferd
+    binary: xferd
+    main: ./cmd/xferd
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+      - 386
+    goarm:
+      - 7
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+    flags:
+      - -trimpath
+
+archives:
+  - id: default
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats:
+      - tar.gz
+    files:
+      - LICENSE*
+      - README*
+      - config.example.yml
+      - packaging/systemd/*.service
+      - packaging/winsw/*.xml
+      - packaging/winsw/README.md
+
+checksum:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
+
+snapshot:
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
+      - Merge pull request
+      - Merge branch
+
+# Linux packages
+nfpms:
+  - id: xferd
+    package_name: xferd
+    file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    vendor: muzy
+    homepage: https://github.com/muzy/xferd
+    maintainer: muzy <muzy@example.com>
+    description: |
+      Ultra-low-latency file movement service for cross-platform file transfers.
+      Xferd reliably transfers files into and out of systems via REST APIs and
+      filesystem watching.
+    license: MIT
+    formats:
+      - deb
+      - rpm
+    bindir: /usr/bin
+    contents:
+      - src: config.example.yml
+        dst: /etc/xferd/config.yml.example
+        type: config
+      - src: packaging/systemd/xferd.service
+        dst: /lib/systemd/system/xferd.service
+      - src: LICENSE
+        dst: /usr/share/doc/xferd/LICENSE
+    scripts:
+      preinstall: packaging/systemd/preinstall.sh
+      postinstall: packaging/systemd/postinstall.sh
+      preremove: packaging/systemd/preremove.sh
+    overrides:
+      deb:
+        dependencies:
+          - systemd
+      rpm:
+        dependencies:
+          - systemd
+
+release:
+  github:
+    owner: muzy
+    name: xferd
+  draft: false
+  prerelease: auto
+  name_template: "{{.ProjectName}} v{{.Version}}"
+  extra_files:
+    - glob: packaging/winsw/bin/winsw-version.txt
+    - glob: packaging/winsw/bin/WinSW-LICENSE.txt
+

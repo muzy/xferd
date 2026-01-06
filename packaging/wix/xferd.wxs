@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="E5B7C8D9-4F3A-4B2C-9E1D-8A7B6C5D4E3F" 
+           Name="Xferd File Movement Service" 
+           Language="1033" 
+           Version="1.0.0" 
+           Manufacturer="muzy" 
+           UpgradeCode="E5B7C8D9-4F3A-4B2C-9E1D-8A7B6C5D4E3F">
+    
+    <Package InstallerVersion="200"
+             Compressed="yes"
+             InstallScope="perMachine"
+             Description="Xferd File Movement Service Installer"
+             Comments="Ultra-low-latency file movement service for cross-platform file transfers" />
+
+    <Media Id="1" Cabinet="xferd.cab" EmbedCab="yes" />
+
+    <!-- Feature: Main Application -->
+    <Feature Id="Complete"
+             Title="Xferd File Movement Service"
+             Level="1"
+             Description="Installs the Xferd file movement service with WinSW service wrapper">
+      <ComponentRef Id="XferdExe" />
+      <ComponentRef Id="XferdServiceExe" />
+      <ComponentRef Id="ConfigExample" />
+      <ComponentRef Id="XferdXml" />
+      <ComponentRef Id="ServiceReadme" />
+      <ComponentRef Id="WinSWLicense" />
+      <ComponentRef Id="ProgramMenuShortcut" />
+    </Feature>
+
+    <!-- Directory Structure -->
+    <Directory Id="TARGETDIR" Name="SourceDir">
+    <Directory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="Xferd">
+        
+        <!-- Main Xferd Executable -->
+        <Component Id="XferdExe" Guid="A1B2C3D4-E5F6-4A5B-8C9D-0E1F2A3B4C5D">
+          <File Id="XferdExe" 
+                Source="xferd.exe" 
+                KeyPath="yes" />
+          
+          <!-- Note: Environment element not supported by wixl on Linux -->
+          <!-- Users will need to manually add to PATH or use full path -->
+        </Component>
+
+        <!-- WinSW Service Wrapper -->
+        <Component Id="XferdServiceExe" Guid="E5F6A7B8-C9D0-4E5F-2A3B-4C5D6E7F8A9B">
+          <File Id="XferdServiceExe" 
+                Source="WinSW.exe" 
+                Name="xferd-service.exe"
+                KeyPath="yes" />
+        </Component>
+
+        <!-- Configuration Files -->
+        <Component Id="ConfigExample" Guid="B2C3D4E5-F6A7-4B5C-9D0E-1F2A3B4C5D6E">
+          <File Id="ConfigExample"
+                Source="config.example.yml"
+                KeyPath="yes" />
+        </Component>
+        
+        <Component Id="XferdXml" Guid="C3D4E5F6-A7B8-4C5D-0E1F-2A3B4C5D6E7F">
+          <File Id="XferdXml" 
+                Source="xferd.xml" 
+                KeyPath="yes" />
+        </Component>
+        
+        <Component Id="ServiceReadme" Guid="D4E5F6A7-B8C9-4D5E-1F2A-3B4C5D6E7F8A">
+          <File Id="ServiceReadme" 
+                Source="README.md" 
+                Name="SERVICE_README.md"
+                KeyPath="yes" />
+        </Component>
+
+        <Component Id="WinSWLicense" Guid="A9B0C1D2-E3F4-4A5B-6C7D-8E9F0A1B2C3D">
+          <File Id="WinSWLicense" 
+                Source="WinSW-LICENSE.txt" 
+                KeyPath="yes" />
+        </Component>
+      </Directory>
+    </Directory>
+    
+    <!-- Start Menu -->
+    <Directory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="Xferd">
+        <Component Id="ProgramMenuShortcut" Guid="F6A7B8C9-D0E1-4F5A-3B4C-5D6E7F8A9B0C">
+          <Shortcut Id="InstallFolderShortcut"
+                    Name="Xferd Install Folder"
+                    Description="Open Xferd installation folder"
+                    Target="[INSTALLFOLDER]"
+                    WorkingDirectory="INSTALLFOLDER"/>
+          
+          <Shortcut Id="ServiceReadmeShortcut"
+                    Name="Service Setup Guide"
+                    Description="How to install Xferd as a Windows service"
+                    Target="[INSTALLFOLDER]SERVICE_README.md"/>
+          
+          <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
+          <RegistryValue Root="HKCU" 
+                         Key="Software\muzy\Xferd" 
+                         Name="installed" 
+                         Type="integer" 
+                         Value="1" 
+                         KeyPath="yes"/>
+        </Component>
+      </Directory>
+    </Directory>
+  </Directory>
+  </Product>
+</Wix>
+

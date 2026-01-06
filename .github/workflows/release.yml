@@ -1,0 +1,123 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Run unit tests
+        run: go test -v -race ./...
+
+      - name: Run integration tests
+        run: go test -v -tags=integration ./internal/service
+
+      - name: Run E2E tests
+        run: go test -v -tags=e2e ./test/e2e/...
+
+  goreleaser:
+    name: GoReleaser Build
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Download WinSW
+        run: ./scripts/download-winsw.sh
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v5
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload WinSW version info
+        uses: actions/upload-artifact@v4
+        with:
+          name: winsw-binaries
+          path: packaging/winsw/bin/
+          retention-days: 5
+
+      - name: Upload dist artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: goreleaser-dist
+          path: dist/
+          retention-days: 5
+
+  build-msi:
+    name: Build Windows MSI
+    needs: goreleaser
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install msitools
+        run: sudo apt-get update && sudo apt-get install -y msitools wixl
+
+      - name: Download WinSW binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: winsw-binaries
+          path: packaging/winsw/bin/
+
+      - name: Download GoReleaser dist
+        uses: actions/download-artifact@v4
+        with:
+          name: goreleaser-dist
+          path: dist/
+
+      - name: Build MSI packages
+        run: ./scripts/build-msi.sh
+        env:
+          VERSION: ${{ github.ref_name }}
+
+      - name: Upload MSI to release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            dist/*.msi
+            packaging/winsw/bin/winsw-version.txt
+            packaging/winsw/bin/WinSW-LICENSE.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload MSI artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: msi-installers
+          path: dist/*.msi
+          retention-days: 30
+
