@@ -560,7 +560,7 @@ directories:
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	
+
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("Failed to start binary: %v", err)
 	}
