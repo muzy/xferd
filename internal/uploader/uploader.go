@@ -152,7 +152,7 @@ func (u *Uploader) executeWithRetry(req *http.Request, filePath string, fileSize
 	for attempt := 0; attempt <= maxRetries; attempt++ {
 		if attempt > 0 {
 			log.Printf("Upload retry %d/%d for %s", attempt, maxRetries, filePath)
-			
+
 			// Check if context is cancelled before sleeping
 			select {
 			case <-req.Context().Done():

@@ -65,20 +65,20 @@ jobs:
           cache: true
 
       - name: Run unit tests
-        run: go test -v -race -coverprofile=coverage.out ./...
+        run: go test -v -race -coverprofile=coverage.txt ./...
 
       - name: Upload coverage to Codecov
         if: matrix.os == 'ubuntu-latest' && matrix.go-version == '1.24'
         uses: codecov/codecov-action@v4
         with:
-          file: ./coverage.out
+          file: ./coverage.txt
           flags: unittests
           name: codecov-umbrella
         continue-on-error: true
 
       - name: Display coverage
         if: matrix.os == 'ubuntu-latest' && matrix.go-version == '1.24'
-        run: go tool cover -func=coverage.out
+        run: go tool cover -func=coverage.txt
 
   test-integration:
     name: Integration Tests
