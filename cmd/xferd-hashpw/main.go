@@ -49,8 +49,3 @@ func main() {
 	fmt.Println()
 	fmt.Println("Note: Do NOT use both 'password' and 'password_hash' - use only 'password_hash' for production.")
 }
-
-
-
-
-

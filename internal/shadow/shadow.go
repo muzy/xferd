@@ -131,7 +131,7 @@ func (m *Manager) getShadowPath(sourcePath string) string {
 	base := filepath.Base(sourcePath)
 	timestamp := time.Now().Format("20060102-150405.000000")
 	shadowName := fmt.Sprintf("%s-%s", timestamp, base)
-	
+
 	return filepath.Join(m.config.Path, shadowName)
 }
 
@@ -157,4 +157,3 @@ func (m *Manager) copyFile(src, dst string) error {
 	// Sync to disk
 	return destination.Sync()
 }
-
