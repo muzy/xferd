@@ -485,6 +485,9 @@ func TestDispatcherEnqueue(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("Upload not received within timeout")
 	}
+
+	// Give worker time to finish processing (shadow copy, file deletion)
+	time.Sleep(100 * time.Millisecond)
 }
 
 func TestDispatcherMultipleFiles(t *testing.T) {
@@ -666,6 +669,9 @@ func TestDispatcherUploadFailure(t *testing.T) {
 	if _, err := os.Stat(testFile); err != nil {
 		t.Error("Source file should still exist after failed upload")
 	}
+
+	// Give worker time to finish processing
+	time.Sleep(500 * time.Millisecond)
 }
 
 func TestDispatcherLargeFileStreaming(t *testing.T) {

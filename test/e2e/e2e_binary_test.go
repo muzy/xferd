@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"syscall"
 	"testing"
 	"time"
@@ -98,7 +99,11 @@ directories:
 
 	// Build the binary from project root
 	t.Log("Building xferd binary...")
-	binaryPath := filepath.Join(testDir, "xferd")
+	binaryName := "xferd"
+	if runtime.GOOS == "windows" {
+		binaryName = "xferd.exe"
+	}
+	binaryPath := filepath.Join(testDir, binaryName)
 
 	// Get the project root (2 levels up from test/e2e)
 	projectRoot, err := filepath.Abs("../..")
@@ -271,8 +276,20 @@ done:
 
 	// Graceful shutdown test
 	t.Log("Testing graceful shutdown...")
-	if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
-		t.Errorf("Failed to send SIGTERM: %v", err)
+	if runtime.GOOS == "windows" {
+		// On Windows, use taskkill to send SIGTERM equivalent
+		killCmd := exec.Command("taskkill", "/PID", fmt.Sprintf("%d", cmd.Process.Pid), "/T")
+		if err := killCmd.Run(); err != nil {
+			t.Logf("Failed to send SIGTERM via taskkill: %v", err)
+			// Fallback to Kill()
+			if err := cmd.Process.Kill(); err != nil {
+				t.Errorf("Failed to kill process: %v", err)
+			}
+		}
+	} else {
+		if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
+			t.Errorf("Failed to send SIGTERM: %v", err)
+		}
 	}
 
 	// Wait for process to exit (give it more time as workers need to finish)
@@ -370,7 +387,11 @@ directories:
 	}
 
 	// Build binary from project root
-	binaryPath := filepath.Join(testDir, "xferd")
+	binaryName := "xferd"
+	if runtime.GOOS == "windows" {
+		binaryName = "xferd.exe"
+	}
+	binaryPath := filepath.Join(testDir, binaryName)
 	projectRoot, _ := filepath.Abs("../..")
 	buildCmd := exec.Command("go", "build", "-o", binaryPath, "./cmd/xferd")
 	buildCmd.Dir = projectRoot
@@ -480,7 +501,11 @@ directories:
 	os.WriteFile(configFile, []byte(configContent), 0644)
 
 	// Build binary from project root
-	binaryPath := filepath.Join(testDir, "xferd")
+	binaryName := "xferd"
+	if runtime.GOOS == "windows" {
+		binaryName = "xferd.exe"
+	}
+	binaryPath := filepath.Join(testDir, binaryName)
 	projectRoot, _ := filepath.Abs("../..")
 	buildCmd := exec.Command("go", "build", "-o", binaryPath, "./cmd/xferd")
 	buildCmd.Dir = projectRoot
