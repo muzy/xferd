@@ -3,6 +3,7 @@ package shadow
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -349,7 +350,7 @@ func TestGetShadowPath(t *testing.T) {
 	}
 
 	// Should contain original filename
-	if !filepath.HasPrefix(filename, "202") { // timestamp starts with year 202x
+	if !strings.HasPrefix(filename, "202") { // timestamp starts with year 202x
 		t.Errorf("Shadow filename should start with timestamp. Got: %s", filename)
 	}
 }

@@ -25,7 +25,7 @@ func NewManager(cfg config.ShadowConfig) (*Manager, error) {
 	}
 
 	// Ensure shadow directory exists
-	if err := os.MkdirAll(cfg.Path, 0755); err != nil {
+	if err := os.MkdirAll(cfg.Path, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create shadow directory: %w", err)
 	}
 
@@ -48,7 +48,7 @@ func (m *Manager) Store(sourcePath string) error {
 
 	// Ensure parent directory exists
 	shadowDir := filepath.Dir(shadowPath)
-	if err := os.MkdirAll(shadowDir, 0755); err != nil {
+	if err := os.MkdirAll(shadowDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create shadow subdirectory: %w", err)
 	}
 

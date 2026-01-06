@@ -187,8 +187,8 @@ func TestUploadEndpointSuccess(t *testing.T) {
 	}
 
 	content := []byte("test file content")
-	part.Write(content)
-	writer.Close()
+	_, _ = part.Write(content)
+	_ = writer.Close()
 
 	// Create request
 	req := httptest.NewRequest("POST", "/upload/test", body)
@@ -300,8 +300,8 @@ func TestUploadEndpointUnknownDirectory(t *testing.T) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 	part, _ := writer.CreateFormFile("file", "test.txt")
-	part.Write([]byte("content"))
-	writer.Close()
+	_, _ = part.Write([]byte("content"))
+	_ = writer.Close()
 
 	// Request for unknown directory
 	req := httptest.NewRequest("POST", "/upload/unknown", body)
@@ -338,8 +338,8 @@ func TestUploadEndpointMissingFile(t *testing.T) {
 	// Create multipart form without file field
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	writer.WriteField("other", "value")
-	writer.Close()
+	_ = writer.WriteField("other", "value")
+	_ = writer.Close()
 
 	req := httptest.NewRequest("POST", "/upload/test", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -391,8 +391,8 @@ func TestUploadEndpointLargeFile(t *testing.T) {
 	for i := range largeContent {
 		largeContent[i] = byte(i % 256)
 	}
-	part.Write(largeContent)
-	writer.Close()
+	_, _ = part.Write(largeContent)
+	_ = writer.Close()
 
 	req := httptest.NewRequest("POST", "/upload/test", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -728,8 +728,8 @@ func TestUploadFilenameWithSpecialCharacters(t *testing.T) {
 			}
 
 			content := []byte("test content")
-			part.Write(content)
-			writer.Close()
+			_, _ = part.Write(content)
+			_ = writer.Close()
 
 			req := httptest.NewRequest("POST", "/upload/test", body)
 			req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -788,7 +788,7 @@ func TestBasicAuthEnabled(t *testing.T) {
 		body := &bytes.Buffer{}
 		writer := multipart.NewWriter(body)
 		part, _ := writer.CreateFormFile("file", "test.txt")
-		part.Write([]byte("test content"))
+		_, _ = part.Write([]byte("test content"))
 		writer.Close()
 
 		req := httptest.NewRequest("POST", "/upload/test", body)
@@ -814,7 +814,7 @@ func TestBasicAuthEnabled(t *testing.T) {
 		body := &bytes.Buffer{}
 		writer := multipart.NewWriter(body)
 		part, _ := writer.CreateFormFile("file", "test.txt")
-		part.Write([]byte("test content"))
+		_, _ = part.Write([]byte("test content"))
 		writer.Close()
 
 		req := httptest.NewRequest("POST", "/upload/test", body)
@@ -836,7 +836,7 @@ func TestBasicAuthEnabled(t *testing.T) {
 		body := &bytes.Buffer{}
 		writer := multipart.NewWriter(body)
 		part, _ := writer.CreateFormFile("file", "test.txt")
-		part.Write([]byte("test content"))
+		_, _ = part.Write([]byte("test content"))
 		writer.Close()
 
 		req := httptest.NewRequest("POST", "/upload/test", body)
@@ -894,7 +894,7 @@ func TestBasicAuthWithHash(t *testing.T) {
 		body := &bytes.Buffer{}
 		writer := multipart.NewWriter(body)
 		part, _ := writer.CreateFormFile("file", "test.txt")
-		part.Write([]byte("test content"))
+		_, _ = part.Write([]byte("test content"))
 		writer.Close()
 
 		req := httptest.NewRequest("POST", "/upload/test", body)
@@ -915,7 +915,7 @@ func TestBasicAuthWithHash(t *testing.T) {
 		body := &bytes.Buffer{}
 		writer := multipart.NewWriter(body)
 		part, _ := writer.CreateFormFile("file", "test.txt")
-		part.Write([]byte("test content"))
+		_, _ = part.Write([]byte("test content"))
 		writer.Close()
 
 		req := httptest.NewRequest("POST", "/upload/test", body)
@@ -937,7 +937,7 @@ func TestBasicAuthWithHash(t *testing.T) {
 		body := &bytes.Buffer{}
 		writer := multipart.NewWriter(body)
 		part, _ := writer.CreateFormFile("file", "test.txt")
-		part.Write([]byte("test content"))
+		_, _ = part.Write([]byte("test content"))
 		writer.Close()
 
 		req := httptest.NewRequest("POST", "/upload/test", body)
@@ -987,7 +987,7 @@ func TestBasicAuthDisabled(t *testing.T) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 	part, _ := writer.CreateFormFile("file", "test.txt")
-	part.Write([]byte("test content"))
+	_, _ = part.Write([]byte("test content"))
 	writer.Close()
 
 	req := httptest.NewRequest("POST", "/upload/test", body)
@@ -1054,7 +1054,7 @@ func TestPathTraversalProtection(t *testing.T) {
 			body := &bytes.Buffer{}
 			writer := multipart.NewWriter(body)
 			part, _ := writer.CreateFormFile("file", tt.filename)
-			part.Write([]byte("test content"))
+			_, _ = part.Write([]byte("test content"))
 			writer.Close()
 
 			req := httptest.NewRequest("POST", "/upload/test", body)
@@ -1376,8 +1376,8 @@ func TestUploadToSubdirectory(t *testing.T) {
 			}
 
 			content := []byte("test content for " + tc.filename)
-			part.Write(content)
-			writer.Close()
+			_, _ = part.Write(content)
+			_ = writer.Close()
 
 			req := httptest.NewRequest("POST", tc.urlPath, body)
 			req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -1525,7 +1525,7 @@ func TestSubdirectoryPathTraversalProtection(t *testing.T) {
 			body := &bytes.Buffer{}
 			writer := multipart.NewWriter(body)
 			part, _ := writer.CreateFormFile("file", "file.txt")
-			part.Write([]byte("malicious content"))
+			_, _ = part.Write([]byte("malicious content"))
 			writer.Close()
 
 			req := httptest.NewRequest("POST", tt.urlPath, body)

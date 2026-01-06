@@ -74,7 +74,7 @@ func TestUploadSuccess(t *testing.T) {
 		}
 
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Upload successful"))
+		_, _ = w.Write([]byte("Upload successful"))
 	}))
 	defer server.Close()
 
@@ -228,7 +228,7 @@ func TestUploadServerError(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Server error"))
+		_, _ = w.Write([]byte("Server error"))
 	}))
 	defer server.Close()
 
@@ -260,7 +260,7 @@ func TestUploadClientError(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("Bad request"))
+		_, _ = w.Write([]byte("Bad request"))
 	}))
 	defer server.Close()
 
@@ -693,7 +693,7 @@ func TestDispatcherLargeFileStreaming(t *testing.T) {
 		}
 
 		// Read and discard body
-		io.Copy(io.Discard, r.Body)
+		_, _ = io.Copy(io.Discard, r.Body)
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()

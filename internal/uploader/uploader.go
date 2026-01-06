@@ -53,19 +53,19 @@ func (u *Uploader) Upload(ctx context.Context, filePath string) error {
 	writer := multipart.NewWriter(body)
 
 	// Create form file
-	part, err := writer.CreateFormFile("file", filepath.Base(filePath))
-	if err != nil {
-		return fmt.Errorf("failed to create form file: %w", err)
+	part, partErr := writer.CreateFormFile("file", filepath.Base(filePath))
+	if partErr != nil {
+		return fmt.Errorf("failed to create form file: %w", partErr)
 	}
 
 	// Copy file content
-	if _, err := io.Copy(part, file); err != nil {
-		return fmt.Errorf("failed to copy file content: %w", err)
+	if _, copyErr := io.Copy(part, file); copyErr != nil {
+		return fmt.Errorf("failed to copy file content: %w", copyErr)
 	}
 
 	// Close multipart writer
-	if err := writer.Close(); err != nil {
-		return fmt.Errorf("failed to close multipart writer: %w", err)
+	if closeErr := writer.Close(); closeErr != nil {
+		return fmt.Errorf("failed to close multipart writer: %w", closeErr)
 	}
 
 	// Create HTTP request
@@ -105,14 +105,14 @@ func (u *Uploader) UploadStream(ctx context.Context, filePath string) error {
 		defer pw.Close()
 		defer writer.Close()
 
-		part, err := writer.CreateFormFile("file", filepath.Base(filePath))
-		if err != nil {
-			pw.CloseWithError(err)
+		part, partErr := writer.CreateFormFile("file", filepath.Base(filePath))
+		if partErr != nil {
+			pw.CloseWithError(partErr)
 			return
 		}
 
-		if _, err := io.Copy(part, file); err != nil {
-			pw.CloseWithError(err)
+		if _, copyErr := io.Copy(part, file); copyErr != nil {
+			pw.CloseWithError(copyErr)
 			return
 		}
 	}()

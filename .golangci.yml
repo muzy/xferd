@@ -17,7 +17,7 @@ linters:
     - unconvert
     - unparam
     - bodyclose
-    - exportloopref
+    - copyloopvar
     - gocritic
     - gosec
     - revive
@@ -30,6 +30,7 @@ linters-settings:
   govet:
     enable:
       - shadow
+    disable:
       - fieldalignment
   
   gofmt:
@@ -65,6 +66,8 @@ issues:
       linters:
         - gosec
         - gocritic
+        - unparam
+        - govet
     
     # Exclude known linters from partially hard-coded issues
     - linters:

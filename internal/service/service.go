@@ -48,7 +48,8 @@ func New(cfg *config.Config) (*Service, error) {
 	}
 
 	// Create watchers, dispatchers, and shadow managers for each directory
-	for _, dirCfg := range cfg.Directories {
+	for i := range cfg.Directories {
+		dirCfg := &cfg.Directories[i]
 		// Create shadow manager
 		shadowMgr, err := shadow.NewManager(dirCfg.Shadow)
 		if err != nil {
@@ -61,10 +62,10 @@ func New(cfg *config.Config) (*Service, error) {
 		svc.dispatchers = append(svc.dispatchers, dispatcher)
 
 		// Create file event handler
-		handler := svc.createFileHandler(dirCfg.Name, shadowMgr, dispatcher)
+		handler := svc.createFileHandler(dirCfg.Name, dispatcher)
 
 		// Create watcher
-		w, err := watcher.NewWatcher(dirCfg, handler)
+		w, err := watcher.NewWatcher(*dirCfg, handler)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create watcher for %s: %w", dirCfg.Name, err)
 		}
@@ -87,7 +88,7 @@ func New(cfg *config.Config) (*Service, error) {
 }
 
 // createFileHandler creates a file event handler for a directory
-func (s *Service) createFileHandler(dirName string, shadowMgr *shadow.Manager, dispatcher *uploader.Dispatcher) watcher.EventHandler {
+func (s *Service) createFileHandler(dirName string, dispatcher *uploader.Dispatcher) watcher.EventHandler {
 	return func(event watcher.FileEvent) error {
 		log.Printf("[%s] File detected: %s (rename: %v)", dirName, event.Path, event.IsRename)
 
@@ -244,7 +245,8 @@ func logConfiguration(cfg *config.Config) {
 
 	// Directory configurations
 	log.Printf("Directories: %d configured", len(cfg.Directories))
-	for i, dir := range cfg.Directories {
+	for i := range cfg.Directories {
+		dir := &cfg.Directories[i]
 		log.Printf("Directory %d: %s", i+1, dir.Name)
 		recursiveStr := ""
 		if !dir.Recursive {
@@ -303,11 +305,12 @@ func logConfiguration(cfg *config.Config) {
 
 		// Upload explanation
 		log.Printf("  Outbound Upload: Files sent to %s", dir.Outbound.URL)
-		if dir.Outbound.Auth.Type == "basic" {
+		switch dir.Outbound.Auth.Type {
+		case "basic":
 			log.Printf("    → Authentication: HTTP Basic Auth (%s)", dir.Outbound.Auth.Username)
-		} else if dir.Outbound.Auth.Type == "bearer" {
+		case "bearer":
 			log.Printf("    → Authentication: Bearer token")
-		} else {
+		default:
 			log.Printf("    → Authentication: none")
 		}
 		log.Printf("    → Method: Concurrent uploads with automatic retry on failure")

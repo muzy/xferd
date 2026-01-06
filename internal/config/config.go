@@ -145,7 +145,8 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("at least one directory must be configured")
 	}
 
-	for i, dir := range c.Directories {
+	for i := range c.Directories {
+		dir := &c.Directories[i]
 		if err := dir.Validate(); err != nil {
 			return fmt.Errorf("directory[%d] (%s): %w", i, dir.Name, err)
 		}
@@ -164,14 +165,8 @@ func (d *DirectoryConfig) Validate() error {
 		return fmt.Errorf("watch_path is required")
 	}
 
-	if d.IngestPath == "" {
-		// If ingest_path is not specified, it defaults to watch_path, so no validation needed
-	} else {
-		// If ingest_path is specified, ensure it's not empty (shouldn't happen due to YAML parsing, but being safe)
-		if d.IngestPath == "" {
-			return fmt.Errorf("ingest_path cannot be empty when specified")
-		}
-	}
+	// If ingest_path is not specified, it defaults to watch_path, so no validation needed
+	// (The above check is not needed as the condition is always false)
 
 	// Validate watch mode
 	validModes := map[string]bool{
@@ -252,7 +247,7 @@ func setDefaults(cfg *Config) {
 // applyEnvOverrides applies environment variable overrides to the config
 func applyEnvOverrides(cfg *Config) {
 	if port := os.Getenv("XFERD_PORT"); port != "" {
-		fmt.Sscanf(port, "%d", &cfg.Server.Port)
+		_, _ = fmt.Sscanf(port, "%d", &cfg.Server.Port)
 	}
 	if addr := os.Getenv("XFERD_ADDRESS"); addr != "" {
 		cfg.Server.Address = addr

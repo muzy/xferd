@@ -290,7 +290,7 @@ func TestIsStableFileModifiedDuringCheck(t *testing.T) {
 	// Modify file during stability check
 	time.Sleep(100 * time.Millisecond)
 	newContent := []byte("modified content")
-	os.WriteFile(testFile, newContent, 0644)
+	_ = os.WriteFile(testFile, newContent, 0644)
 
 	<-done
 

@@ -7,10 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/fsnotify/fsnotify"
 	"github.com/muzy/xferd/internal/config"
 )
 
@@ -32,15 +30,6 @@ type Watcher interface {
 	ClearEnqueued(path string)
 }
 
-// BaseWatcher contains common watcher functionality
-type BaseWatcher struct {
-	config  config.DirectoryConfig
-	handler EventHandler
-	watcher *fsnotify.Watcher
-	mu      sync.Mutex
-	stopped bool
-}
-
 // IgnoredSuffixes are file patterns to ignore (legacy - for backward compatibility)
 var IgnoredSuffixes = []string{".partial", ".uploading", ".tmp", ".swp", ".~"}
 
@@ -49,7 +38,7 @@ func ShouldIgnore(path string, ignorePatterns []string) bool {
 	base := filepath.Base(path)
 
 	// Ignore hidden files
-	if len(base) > 0 && base[0] == '.' {
+	if base != "" && base[0] == '.' {
 		return true
 	}
 

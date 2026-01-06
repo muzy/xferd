@@ -29,14 +29,14 @@ type Server struct {
 // NewServer creates a new REST ingress server
 func NewServer(cfg config.ServerConfig, directories []config.DirectoryConfig) (*Server, error) {
 	// Create temp directory if it doesn't exist
-	if err := os.MkdirAll(cfg.TempDir, 0755); err != nil {
+	if err := os.MkdirAll(cfg.TempDir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create temp directory: %w", err)
 	}
 
 	// Build directory map
 	dirMap := make(map[string]config.DirectoryConfig)
-	for _, dir := range directories {
-		dirMap[dir.Name] = dir
+	for i := range directories {
+		dirMap[directories[i].Name] = directories[i]
 	}
 
 	s := &Server{
@@ -66,7 +66,9 @@ func (s *Server) Start(ctx context.Context) error {
 		<-ctx.Done()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		s.httpServer.Shutdown(shutdownCtx)
+		if err := s.httpServer.Shutdown(shutdownCtx); err != nil {
+			log.Printf("Error shutting down server: %v", err)
+		}
 	}()
 
 	addr := s.httpServer.Addr
@@ -254,7 +256,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("OK"))
+	_, _ = w.Write([]byte("OK"))
 }
 
 // handleUpload handles file upload requests
@@ -324,9 +326,9 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 	var targetRelPath string
 	if subdirPath != "" {
 		// Sanitize subdirectory path (allows path separators)
-		safeSubdir, err := sanitizeSubdirectoryPath(subdirPath)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Invalid subdirectory path: %v", err), http.StatusBadRequest)
+		safeSubdir, subdirErr := sanitizeSubdirectoryPath(subdirPath)
+		if subdirErr != nil {
+			http.Error(w, fmt.Sprintf("Invalid subdirectory path: %v", subdirErr), http.StatusBadRequest)
 			log.Printf("Rejected unsafe subdirectory from %s: %s", r.RemoteAddr, subdirPath)
 			return
 		}
@@ -345,7 +347,7 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 
 	// Create subdirectories if needed
 	finalDir := filepath.Dir(finalPath)
-	if err := os.MkdirAll(finalDir, 0755); err != nil {
+	if err := os.MkdirAll(finalDir, 0o755); err != nil {
 		http.Error(w, fmt.Sprintf("Failed to create directory: %v", err), http.StatusInternalServerError)
 		log.Printf("Directory creation failed for %s: %v", handler.Filename, err)
 		return
@@ -451,9 +453,9 @@ func (s *Server) handleStreamingUpload(w http.ResponseWriter, r *http.Request) {
 	var targetRelPath string
 	if subdirPath != "" {
 		// Sanitize subdirectory path (allows path separators)
-		safeSubdir, err := sanitizeSubdirectoryPath(subdirPath)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Invalid subdirectory path: %v", err), http.StatusBadRequest)
+		safeSubdir, subdirErr := sanitizeSubdirectoryPath(subdirPath)
+		if subdirErr != nil {
+			http.Error(w, fmt.Sprintf("Invalid subdirectory path: %v", subdirErr), http.StatusBadRequest)
 			log.Printf("Rejected unsafe subdirectory from %s: %s", r.RemoteAddr, subdirPath)
 			return
 		}
@@ -472,7 +474,7 @@ func (s *Server) handleStreamingUpload(w http.ResponseWriter, r *http.Request) {
 
 	// Create subdirectories if needed
 	finalDir := filepath.Dir(finalPath)
-	if err := os.MkdirAll(finalDir, 0755); err != nil {
+	if err := os.MkdirAll(finalDir, 0o755); err != nil {
 		http.Error(w, fmt.Sprintf("Failed to create directory: %v", err), http.StatusInternalServerError)
 		log.Printf("Directory creation failed for %s: %v", filename, err)
 		return
