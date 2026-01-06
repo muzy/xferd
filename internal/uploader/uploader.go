@@ -152,13 +152,24 @@ func (u *Uploader) executeWithRetry(req *http.Request, filePath string, fileSize
 	for attempt := 0; attempt <= maxRetries; attempt++ {
 		if attempt > 0 {
 			log.Printf("Upload retry %d/%d for %s", attempt, maxRetries, filePath)
-			time.Sleep(backoff)
+			
+			// Check if context is cancelled before sleeping
+			select {
+			case <-req.Context().Done():
+				return fmt.Errorf("upload cancelled: %w", req.Context().Err())
+			case <-time.After(backoff):
+				// Continue with retry
+			}
 			backoff *= 2
 		}
 
 		resp, err := u.client.Do(req)
 		if err != nil {
 			lastErr = fmt.Errorf("request failed: %w", err)
+			// Check if this is a context cancellation error
+			if req.Context().Err() != nil {
+				return fmt.Errorf("upload cancelled: %w", req.Context().Err())
+			}
 			continue
 		}
 
@@ -196,6 +207,7 @@ type Dispatcher struct {
 	cancel             context.CancelFunc
 	stopped            bool
 	stopMu             sync.Mutex
+	wg                 sync.WaitGroup // track worker goroutines
 }
 
 // SetOnSuccessfulUpload sets the callback for successful uploads
@@ -225,26 +237,34 @@ func (d *Dispatcher) Start(ctx context.Context) {
 
 	// Start worker goroutines
 	for i := 0; i < d.maxWorkers; i++ {
+		d.wg.Add(1)
 		go d.worker(i)
 	}
 
 	log.Printf("Upload dispatcher started with %d workers", d.maxWorkers)
 }
 
-// Stop stops the dispatcher
+// Stop stops the dispatcher and waits for all workers to finish
 func (d *Dispatcher) Stop() {
 	d.stopMu.Lock()
-	defer d.stopMu.Unlock()
-
 	if d.stopped {
+		d.stopMu.Unlock()
 		return
 	}
 	d.stopped = true
+	d.stopMu.Unlock()
 
+	// Cancel context to signal workers to stop
 	if d.cancel != nil {
 		d.cancel()
 	}
+
+	// Close work queue to unblock workers waiting on queue
 	close(d.workQueue)
+
+	// Wait for all workers to finish processing
+	d.wg.Wait()
+	log.Printf("All upload workers stopped")
 }
 
 // Enqueue adds a file to the upload queue
@@ -266,6 +286,7 @@ func (d *Dispatcher) Enqueue(filePath string, processedDueToTimeout bool) {
 
 // worker processes files from the queue
 func (d *Dispatcher) worker(id int) {
+	defer d.wg.Done()
 	log.Printf("Upload worker %d started", id)
 
 	for {
