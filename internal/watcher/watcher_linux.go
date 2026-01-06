@@ -207,6 +207,11 @@ func (w *LinuxWatcher) handleHybridEvent(event fsnotify.Event) {
 			return
 		}
 
+		// Check if event is valid (processFile returns empty event for ignored/disappeared files)
+		if event.Path == "" {
+			return
+		}
+
 		// Mark as enqueued
 		w.enqueuedFiles.Store(path, true)
 
@@ -233,6 +238,11 @@ func (w *LinuxWatcher) handleHybridEvent(event fsnotify.Event) {
 			event, err := processFile(path, false, w.config)
 			if err != nil {
 				log.Printf("Error processing file %s: %v", path, err)
+				return
+			}
+
+			// Check if event is valid (processFile returns empty event for ignored/disappeared files)
+			if event.Path == "" {
 				return
 			}
 
@@ -321,6 +331,12 @@ func (w *LinuxWatcher) performReconciliationScan() {
 			event, err := processFile(path, false, w.config)
 			if err != nil {
 				log.Printf("Reconciliation: error processing %s: %v", path, err)
+				w.processingFiles.Delete(path)
+				return nil
+			}
+
+			// Check if event is valid (processFile returns empty event for ignored/disappeared files)
+			if event.Path == "" {
 				w.processingFiles.Delete(path)
 				return nil
 			}

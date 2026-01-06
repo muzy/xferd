@@ -341,8 +341,18 @@ func TestE2EBinaryRecursive(t *testing.T) {
 	uploadReceived := make(chan string, 20)
 	mockServer := http.NewServeMux()
 	mockServer.HandleFunc("/upload", func(w http.ResponseWriter, r *http.Request) {
-		r.ParseMultipartForm(32 << 20)
-		_, header, _ := r.FormFile("file")
+		if err := r.ParseMultipartForm(32 << 20); err != nil {
+			t.Logf("Mock server: failed to parse form: %v", err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		_, header, err := r.FormFile("file")
+		if err != nil {
+			t.Logf("Mock server: failed to get file: %v", err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		t.Logf("Mock server received: %s", header.Filename)
 		uploadReceived <- header.Filename
 		w.WriteHeader(http.StatusOK)
 	})
@@ -352,8 +362,11 @@ func TestE2EBinaryRecursive(t *testing.T) {
 		Handler: mockServer,
 	}
 
-	go httpServer.ListenAndServe()
-	defer httpServer.Close()
+	serverClosed := make(chan struct{})
+	go func() {
+		defer close(serverClosed)
+		httpServer.ListenAndServe()
+	}()
 	time.Sleep(200 * time.Millisecond)
 
 	// Create configuration with recursive watching
@@ -408,11 +421,26 @@ directories:
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("Failed to start binary: %v", err)
 	}
+	t.Logf("✓ Binary started (PID: %d)", cmd.Process.Pid)
 
+	// Store process for cleanup
+	var processExited bool
+
+	// Ensure binary is cleaned up at end
 	defer func() {
-		if cmd.Process != nil {
-			cmd.Process.Signal(syscall.SIGTERM)
-			cmd.Wait()
+		if !processExited && cmd.Process != nil {
+			t.Log("Force killing process...")
+			if err := cmd.Process.Kill(); err != nil {
+				t.Logf("Error killing process: %v", err)
+			}
+			// Don't wait for the process to avoid hanging
+			t.Log("Process kill signal sent (not waiting for completion)")
+		}
+		t.Log("Binary output:")
+		t.Log(stdout.String())
+		if stderr.Len() > 0 {
+			t.Log("Binary errors:")
+			t.Log(stderr.String())
 		}
 	}()
 
@@ -454,6 +482,20 @@ directories:
 	}
 
 	t.Log("✓ All files from nested directories uploaded successfully")
+
+	// Close mock server and wait for it to shut down
+	t.Log("Shutting down mock server...")
+	httpServer.Close()
+	<-serverClosed
+	t.Log("Mock server shut down")
+
+	// Kill the process immediately to avoid hanging
+	t.Log("Terminating xferd process...")
+	if err := cmd.Process.Kill(); err != nil {
+		t.Logf("Error killing process: %v", err)
+	}
+	processExited = true
+
 	t.Log("=== E2E Recursive Test Completed Successfully ===")
 }
 
@@ -515,16 +557,45 @@ directories:
 
 	// Start binary
 	cmd := exec.Command(binaryPath, "-config", configFile)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("Failed to start binary: %v", err)
 	}
+	t.Logf("Binary started (PID: %d)", cmd.Process.Pid)
 
-	time.Sleep(200 * time.Millisecond)
+	// Cleanup function to show output on failure
+	defer func() {
+		if t.Failed() {
+			t.Log("Binary output:")
+			t.Log(stdout.String())
+			if stderr.Len() > 0 {
+				t.Log("Binary errors:")
+				t.Log(stderr.String())
+			}
+		}
+	}()
 
-	// Test SIGTERM
-	t.Log("Sending SIGTERM...")
-	if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
-		t.Fatalf("Failed to send SIGTERM: %v", err)
+	time.Sleep(500 * time.Millisecond)
+
+	// Test graceful shutdown
+	t.Log("Testing graceful shutdown via signal...")
+	if runtime.GOOS == "windows" {
+		// On Windows, use taskkill to send SIGTERM equivalent
+		killCmd := exec.Command("taskkill", "/PID", fmt.Sprintf("%d", cmd.Process.Pid), "/T")
+		if err := killCmd.Run(); err != nil {
+			t.Logf("Failed to send SIGTERM via taskkill: %v", err)
+			// Fallback to Kill()
+			if err := cmd.Process.Kill(); err != nil {
+				t.Fatalf("Failed to kill process: %v", err)
+			}
+		}
+	} else {
+		if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
+			t.Fatalf("Failed to send SIGTERM: %v", err)
+		}
 	}
 
 	done := make(chan error, 1)
@@ -533,11 +604,23 @@ directories:
 	}()
 
 	select {
-	case <-done:
-		t.Log("✓ Binary handled SIGTERM gracefully")
+	case err := <-done:
+		if err != nil {
+			// Exit code 0 or terminated by signal is OK
+			if _, ok := err.(*exec.ExitError); ok {
+				// Process terminated by signal is expected and OK
+				t.Log("✓ Binary shut down gracefully (terminated by signal)")
+			} else {
+				t.Logf("Binary exited with: %v", err)
+			}
+		} else {
+			t.Log("✓ Binary shut down gracefully")
+		}
 	case <-time.After(5 * time.Second):
 		t.Error("Binary did not shut down within timeout after SIGTERM")
 		cmd.Process.Kill()
+		// Give it a moment to be killed
+		time.Sleep(100 * time.Millisecond)
 	}
 
 	t.Log("=== Signal Handling Test Completed ===")

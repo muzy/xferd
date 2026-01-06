@@ -20,8 +20,10 @@ type WindowsWatcher struct {
 	config          config.DirectoryConfig
 	handler         EventHandler
 	watcher         *fsnotify.Watcher
+	watchedDirs     map[string]bool
 	processingFiles sync.Map // tracks files currently being processed for stability
 	enqueuedFiles   sync.Map // tracks files that have been enqueued for upload
+	mu              sync.Mutex
 	ctx             context.Context
 	cancel          context.CancelFunc
 	wg              sync.WaitGroup
@@ -35,9 +37,10 @@ func newPlatformWatcher(cfg config.DirectoryConfig, handler EventHandler) (Watch
 	}
 
 	return &WindowsWatcher{
-		config:  cfg,
-		handler: handler,
-		watcher: w,
+		config:      cfg,
+		handler:     handler,
+		watcher:     w,
+		watchedDirs: make(map[string]bool),
 	}, nil
 }
 
@@ -45,10 +48,9 @@ func newPlatformWatcher(cfg config.DirectoryConfig, handler EventHandler) (Watch
 func (w *WindowsWatcher) Start(ctx context.Context) error {
 	w.ctx, w.cancel = context.WithCancel(ctx)
 
-	// Add watch for the root directory
-	// On Windows, fsnotify supports recursive watching natively
-	if err := w.watcher.Add(w.config.WatchPath); err != nil {
-		return fmt.Errorf("failed to add watch: %w", err)
+	// Initial directory tree walk and watch setup
+	if err := w.setupWatches(); err != nil {
+		return fmt.Errorf("failed to setup watches: %w", err)
 	}
 
 	// Perform startup reconciliation scan if enabled
@@ -86,6 +88,45 @@ func (w *WindowsWatcher) Stop() error {
 	return nil
 }
 
+// setupWatches walks the directory tree and sets up watches
+func (w *WindowsWatcher) setupWatches() error {
+	if !w.config.Recursive {
+		// Non-recursive mode - only watch the root directory
+		return w.addWatch(w.config.WatchPath)
+	}
+
+	// Recursive mode - walk the directory tree and add watches for all directories
+	return filepath.Walk(w.config.WatchPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if info.IsDir() {
+			return w.addWatch(path)
+		}
+
+		return nil
+	})
+}
+
+// addWatch adds a directory to the watch list
+func (w *WindowsWatcher) addWatch(dir string) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	if w.watchedDirs[dir] {
+		return nil // Already watching
+	}
+
+	if err := w.watcher.Add(dir); err != nil {
+		return fmt.Errorf("failed to add watch for %s: %w", dir, err)
+	}
+
+	w.watchedDirs[dir] = true
+	log.Printf("Added watch: %s", dir)
+	return nil
+}
+
 // processEvents processes filesystem events
 func (w *WindowsWatcher) processEvents() {
 	defer w.wg.Done()
@@ -114,6 +155,18 @@ func (w *WindowsWatcher) processEvents() {
 // handleEvent processes a filesystem event
 func (w *WindowsWatcher) handleEvent(event fsnotify.Event) {
 	path := event.Name
+
+	// Handle directory creation (for recursive watching)
+	if event.Op&fsnotify.Create != 0 {
+		info, err := os.Stat(path)
+		if err == nil && info.IsDir() && w.config.Recursive {
+			// New directory created, add watch
+			if err := w.addWatch(path); err != nil {
+				log.Printf("Failed to add watch for new directory %s: %v", path, err)
+			}
+			return
+		}
+	}
 
 	// Check if it's a file (not directory)
 	info, err := os.Stat(path)
@@ -167,6 +220,11 @@ func (w *WindowsWatcher) handleHybridEvent(event fsnotify.Event) {
 			event, err := processFile(path, isRename, w.config)
 			if err != nil {
 				log.Printf("Error processing file %s: %v", path, err)
+				return
+			}
+
+			// Check if event is valid (processFile returns empty event for ignored/disappeared files)
+			if event.Path == "" {
 				return
 			}
 
@@ -254,6 +312,12 @@ func (w *WindowsWatcher) performReconciliationScan() {
 			event, err := processFile(path, false, w.config)
 			if err != nil {
 				log.Printf("Reconciliation: error processing %s: %v", path, err)
+				w.processingFiles.Delete(path)
+				return nil
+			}
+
+			// Check if event is valid (processFile returns empty event for ignored/disappeared files)
+			if event.Path == "" {
 				w.processingFiles.Delete(path)
 				return nil
 			}
